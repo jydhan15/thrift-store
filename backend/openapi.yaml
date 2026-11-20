@@ -1,0 +1,703 @@
+openapi: 3.0.3
+info:
+  title: Thrift Store API
+  version: 1.0.0
+  description: All routes under /api/v1.
+servers:
+- url: /api/v1
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/register:
+    post:
+      tags:
+      - auth
+      summary: Register
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+  /auth/login:
+    post:
+      tags:
+      - auth
+      summary: Login
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+  /categories:
+    get:
+      tags:
+      - catalog
+      summary: List categories with item counts
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+  /brands:
+    get:
+      tags:
+      - catalog
+      summary: List brands (optional ?category=)
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+  /products:
+    get:
+      tags:
+      - catalog
+      summary: List products (q, category, brand, condition, minPrice, maxPrice, sort,
+        page, limit)
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+  /products/{id}:
+    get:
+      tags:
+      - catalog
+      summary: Product detail with description
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+  /products/{id}/offers:
+    post:
+      tags:
+      - offers
+      summary: Make an offer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /offers/mine:
+    get:
+      tags:
+      - offers
+      summary: My offers
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /cart:
+    get:
+      tags:
+      - cart
+      summary: View cart
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /cart/items:
+    post:
+      tags:
+      - cart
+      summary: Add to cart
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /cart/items/{productId}:
+    delete:
+      tags:
+      - cart
+      summary: Remove from cart
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /orders:
+    post:
+      tags:
+      - orders
+      summary: Checkout (Idempotency-Key header required)
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+    get:
+      tags:
+      - orders
+      summary: My orders
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /orders/{id}:
+    get:
+      tags:
+      - orders
+      summary: My order
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /orders/{id}/cancel:
+    post:
+      tags:
+      - orders
+      summary: Cancel unpaid order
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /ai/assistant:
+    post:
+      tags:
+      - ai
+      summary: AI shopping assistant
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/products:
+    post:
+      tags:
+      - admin
+      summary: Create product
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/products/{id}:
+    patch:
+      tags:
+      - admin
+      summary: Update product
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+    delete:
+      tags:
+      - admin
+      summary: Delete product
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/products/{id}/stock:
+    patch:
+      tags:
+      - admin
+      summary: Adjust stock (audit logged)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/orders:
+    get:
+      tags:
+      - admin
+      summary: List orders
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/orders/{id}/status:
+    patch:
+      tags:
+      - admin
+      summary: Update order status
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/orders/{id}/reconcile:
+    post:
+      tags:
+      - admin
+      summary: Reconcile payment with the gateway
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/dashboard:
+    get:
+      tags:
+      - admin
+      summary: Dashboard
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/offers:
+    get:
+      tags:
+      - admin
+      summary: Pending offers
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/offers/{id}:
+    patch:
+      tags:
+      - admin
+      summary: Accept or reject offer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /admin/coupons:
+    post:
+      tags:
+      - admin
+      summary: Create coupon
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+    get:
+      tags:
+      - admin
+      summary: List coupons
+      parameters: []
+      responses:
+        '200':
+          description: Success { success:true, data, meta }
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '409':
+          description: Conflict (stock, state, duplicate)
+        '422':
+          description: Validation error { success:false, error:{code,message,details},
+            requestId }
+      security:
+      - bearer: []
+  /webhooks/paymongo:
+    post:
+      tags:
+      - payments
+      summary: Gateway webhook (raw body, verified, stored by unique event id)
+      responses:
+        '200':
+          description: Received or duplicate
+        '401':
+          description: Invalid signature
+  /webhooks/maya:
+    post:
+      tags:
+      - payments
+      summary: Maya webhook (secret token in callback URL, payment re-verified with
+        Maya API)
+      parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Received or duplicate
+        '401':
+          description: Invalid token

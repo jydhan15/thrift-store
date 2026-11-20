@@ -1,8 +1,9 @@
 {
  "openapi": "3.0.3",
  "info": {
-  "title": "Thrift API",
-  "version": "1.0.0"
+  "title": "Thrift Store API",
+  "version": "1.0.0",
+  "description": "All routes under /api/v1."
  },
  "servers": [
   {
@@ -21,9 +22,11 @@
  "paths": {
   "/auth/register": {
    "post": {
+    "tags": [
+     "auth"
+    ],
     "summary": "Register",
     "parameters": [],
-    "security": [],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -33,6 +36,12 @@
      },
      "403": {
       "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
      },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
@@ -42,9 +51,11 @@
   },
   "/auth/login": {
    "post": {
+    "tags": [
+     "auth"
+    ],
     "summary": "Login",
     "parameters": [],
-    "security": [],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -54,6 +65,70 @@
      },
      "403": {
       "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
+     "422": {
+      "description": "Validation error { success:false, error:{code,message,details}, requestId }"
+     }
+    }
+   }
+  },
+  "/categories": {
+   "get": {
+    "tags": [
+     "catalog"
+    ],
+    "summary": "List categories with item counts",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "Success { success:true, data, meta }"
+     },
+     "401": {
+      "description": "Unauthenticated"
+     },
+     "403": {
+      "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
+     "422": {
+      "description": "Validation error { success:false, error:{code,message,details}, requestId }"
+     }
+    }
+   }
+  },
+  "/brands": {
+   "get": {
+    "tags": [
+     "catalog"
+    ],
+    "summary": "List brands (optional ?category=)",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "Success { success:true, data, meta }"
+     },
+     "401": {
+      "description": "Unauthenticated"
+     },
+     "403": {
+      "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
      },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
@@ -63,9 +138,11 @@
   },
   "/products": {
    "get": {
-    "summary": "List products (q,category,condition,minPrice,maxPrice,sort,page,limit)",
+    "tags": [
+     "catalog"
+    ],
+    "summary": "List products (q, category, brand, condition, minPrice, maxPrice, sort, page, limit)",
     "parameters": [],
-    "security": [],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -75,6 +152,12 @@
      },
      "403": {
       "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
      },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
@@ -84,7 +167,10 @@
   },
   "/products/{id}": {
    "get": {
-    "summary": "Product detail",
+    "tags": [
+     "catalog"
+    ],
+    "summary": "Product detail with description",
     "parameters": [
      {
       "name": "id",
@@ -95,7 +181,6 @@
       }
      }
     ],
-    "security": [],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -105,6 +190,12 @@
      },
      "403": {
       "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
      },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
@@ -114,7 +205,10 @@
   },
   "/products/{id}/offers": {
    "post": {
-    "summary": "Make offer",
+    "tags": [
+     "offers"
+    ],
+    "summary": "Make an offer",
     "parameters": [
      {
       "name": "id",
@@ -125,7 +219,6 @@
       }
      }
     ],
-    "security": [],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -136,21 +229,64 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
+   }
+  },
+  "/offers/mine": {
+   "get": {
+    "tags": [
+     "offers"
+    ],
+    "summary": "My offers",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "Success { success:true, data, meta }"
+     },
+     "401": {
+      "description": "Unauthenticated"
+     },
+     "403": {
+      "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
+     "422": {
+      "description": "Validation error { success:false, error:{code,message,details}, requestId }"
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/cart": {
    "get": {
+    "tags": [
+     "cart"
+    ],
     "summary": "View cart",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -161,21 +297,30 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/cart/items": {
    "post": {
+    "tags": [
+     "cart"
+    ],
     "summary": "Add to cart",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -186,14 +331,28 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/cart/items/{productId}": {
    "delete": {
+    "tags": [
+     "cart"
+    ],
     "summary": "Remove from cart",
     "parameters": [
      {
@@ -205,11 +364,6 @@
       }
      }
     ],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -220,19 +374,37 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/orders": {
    "post": {
-    "summary": "Checkout (Idempotency-Key header)",
-    "parameters": [],
-    "security": [
+    "tags": [
+     "orders"
+    ],
+    "summary": "Checkout (Idempotency-Key header required)",
+    "parameters": [
      {
-      "bearer": []
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "responses": {
@@ -245,19 +417,28 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    },
    "get": {
+    "tags": [
+     "orders"
+    ],
     "summary": "My orders",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -268,14 +449,28 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/orders/{id}": {
    "get": {
+    "tags": [
+     "orders"
+    ],
     "summary": "My order",
     "parameters": [
      {
@@ -287,11 +482,6 @@
       }
      }
     ],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -302,14 +492,28 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/orders/{id}/cancel": {
    "post": {
+    "tags": [
+     "orders"
+    ],
     "summary": "Cancel unpaid order",
     "parameters": [
      {
@@ -321,57 +525,40 @@
       }
      }
     ],
+    "responses": {
+     "200": {
+      "description": "Success { success:true, data, meta }"
+     },
+     "401": {
+      "description": "Unauthenticated"
+     },
+     "403": {
+      "description": "Forbidden"
+     },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
+     "422": {
+      "description": "Validation error { success:false, error:{code,message,details}, requestId }"
+     }
+    },
     "security": [
      {
       "bearer": []
      }
-    ],
-    "responses": {
-     "200": {
-      "description": "Success { success:true, data, meta }"
-     },
-     "401": {
-      "description": "Unauthenticated"
-     },
-     "403": {
-      "description": "Forbidden"
-     },
-     "422": {
-      "description": "Validation error { success:false, error:{code,message,details}, requestId }"
-     }
-    }
-   }
-  },
-  "/offers/mine": {
-   "get": {
-    "summary": "My offers",
-    "parameters": [],
-    "security": [],
-    "responses": {
-     "200": {
-      "description": "Success { success:true, data, meta }"
-     },
-     "401": {
-      "description": "Unauthenticated"
-     },
-     "403": {
-      "description": "Forbidden"
-     },
-     "422": {
-      "description": "Validation error { success:false, error:{code,message,details}, requestId }"
-     }
-    }
+    ]
    }
   },
   "/ai/assistant": {
    "post": {
-    "summary": "AI assistant",
-    "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
+    "tags": [
+     "ai"
     ],
+    "summary": "AI shopping assistant",
+    "parameters": [],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -382,21 +569,30 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/products": {
    "post": {
+    "tags": [
+     "admin"
+    ],
     "summary": "Create product",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -407,14 +603,28 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/products/{id}": {
    "patch": {
+    "tags": [
+     "admin"
+    ],
     "summary": "Update product",
     "parameters": [
      {
@@ -426,11 +636,6 @@
       }
      }
     ],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -441,12 +646,26 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    },
    "delete": {
+    "tags": [
+     "admin"
+    ],
     "summary": "Delete product",
     "parameters": [
      {
@@ -458,11 +677,6 @@
       }
      }
     ],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -473,15 +687,29 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/products/{id}/stock": {
    "patch": {
-    "summary": "Adjust stock",
+    "tags": [
+     "admin"
+    ],
+    "summary": "Adjust stock (audit logged)",
     "parameters": [
      {
       "name": "id",
@@ -490,11 +718,6 @@
       "schema": {
        "type": "string"
       }
-     }
-    ],
-    "security": [
-     {
-      "bearer": []
      }
     ],
     "responses": {
@@ -507,21 +730,30 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/orders": {
    "get": {
+    "tags": [
+     "admin"
+    ],
     "summary": "List orders",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -532,15 +764,29 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/orders/{id}/status": {
    "patch": {
-    "summary": "Update status",
+    "tags": [
+     "admin"
+    ],
+    "summary": "Update order status",
     "parameters": [
      {
       "name": "id",
@@ -549,11 +795,6 @@
       "schema": {
        "type": "string"
       }
-     }
-    ],
-    "security": [
-     {
-      "bearer": []
      }
     ],
     "responses": {
@@ -566,15 +807,29 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/orders/{id}/reconcile": {
    "post": {
-    "summary": "Reconcile payment",
+    "tags": [
+     "admin"
+    ],
+    "summary": "Reconcile payment with the gateway",
     "parameters": [
      {
       "name": "id",
@@ -583,11 +838,6 @@
       "schema": {
        "type": "string"
       }
-     }
-    ],
-    "security": [
-     {
-      "bearer": []
      }
     ],
     "responses": {
@@ -600,21 +850,30 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/dashboard": {
    "get": {
+    "tags": [
+     "admin"
+    ],
     "summary": "Dashboard",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -625,21 +884,30 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/offers": {
    "get": {
+    "tags": [
+     "admin"
+    ],
     "summary": "Pending offers",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -650,15 +918,29 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/offers/{id}": {
    "patch": {
-    "summary": "Decide offer",
+    "tags": [
+     "admin"
+    ],
+    "summary": "Accept or reject offer",
     "parameters": [
      {
       "name": "id",
@@ -669,11 +951,6 @@
       }
      }
     ],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -684,21 +961,30 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/admin/coupons": {
    "post": {
+    "tags": [
+     "admin"
+    ],
     "summary": "Create coupon",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -709,19 +995,28 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    },
    "get": {
+    "tags": [
+     "admin"
+    ],
     "summary": "List coupons",
     "parameters": [],
-    "security": [
-     {
-      "bearer": []
-     }
-    ],
     "responses": {
      "200": {
       "description": "Success { success:true, data, meta }"
@@ -732,21 +1027,61 @@
      "403": {
       "description": "Forbidden"
      },
+     "404": {
+      "description": "Not found"
+     },
+     "409": {
+      "description": "Conflict (stock, state, duplicate)"
+     },
      "422": {
       "description": "Validation error { success:false, error:{code,message,details}, requestId }"
      }
-    }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ]
    }
   },
   "/webhooks/paymongo": {
    "post": {
-    "summary": "PayMongo webhook (raw body, signed)",
+    "tags": [
+     "payments"
+    ],
+    "summary": "Gateway webhook (raw body, verified, stored by unique event id)",
     "responses": {
      "200": {
-      "description": "Received"
+      "description": "Received or duplicate"
      },
      "401": {
       "description": "Invalid signature"
+     }
+    }
+   }
+  },
+  "/webhooks/maya": {
+   "post": {
+    "tags": [
+     "payments"
+    ],
+    "summary": "Maya webhook (secret token in callback URL, payment re-verified with Maya API)",
+    "parameters": [
+     {
+      "name": "token",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Received or duplicate"
+     },
+     "401": {
+      "description": "Invalid token"
      }
     }
    }

@@ -1,0 +1,226 @@
+﻿newman
+
+Thrift Store API
+
+Folder 1 Auth
+Sub-folder Register (new user)
+  POST http://localhost:4000/api/v1/auth/register [201 Created, 1.44kB, 489ms]
+  Pass  Status is 201
+  Pass  Returns token
+
+Sub-folder Register duplicate email (409)
+  POST http://localhost:4000/api/v1/auth/register [409 Conflict, 1.26kB, 99ms]
+  Pass  Status is 409
+  Pass  Error code is EMAIL_TAKEN
+
+Sub-folder Register invalid input (422)
+  POST http://localhost:4000/api/v1/auth/register [422 Unprocessable Entity, 1.42kB, 4ms]
+  Pass  Status is 422
+  Pass  Error code is VALIDATION_ERROR
+
+Sub-folder Login customer
+  POST http://localhost:4000/api/v1/auth/login [200 OK, 1.43kB, 228ms]
+  Pass  Status is 200
+
+Sub-folder Login admin
+  POST http://localhost:4000/api/v1/auth/login [200 OK, 1.42kB, 236ms]
+  Pass  Status is 200
+
+Sub-folder Login wrong password (401)
+  POST http://localhost:4000/api/v1/auth/login [401 Unauthorized, 1.27kB, 221ms]
+  Pass  Status is 401
+  Pass  Error code is INVALID_CREDENTIALS
+
+Folder 2 Catalog
+Sub-folder List products
+  GET http://localhost:4000/api/v1/products?limit=12 [200 OK, 9.4kB, 81ms]
+  Pass  Status is 200
+  Pass  Has pagination meta
+
+Sub-folder List categories
+  GET http://localhost:4000/api/v1/categories [200 OK, 1.35kB, 155ms]
+  Pass  Status is 200
+  Pass  Categories have counts
+
+Sub-folder List brands in a category
+  GET http://localhost:4000/api/v1/brands?category=6af7f56285f3fa0c3138d20a [200 OK, 1.39kB, 80ms]
+  Pass  Status is 200
+  Pass  Brands returned
+
+Sub-folder Filter by brand
+  GET http://localhost:4000/api/v1/products?brand=Wrangler [200 OK, 3.81kB, 81ms]
+  Pass  Status is 200
+  Pass  All items match the brand
+
+Sub-folder Search + sort
+  GET http://localhost:4000/api/v1/products?q=jacket&sort=price_asc [200 OK, 8.28kB, 79ms]
+  Pass  Status is 200
+
+Sub-folder Product detail
+  GET http://localhost:4000/api/v1/products/6afea2a1e984d7dfcdf99fba [200 OK, 1.65kB, 77ms]
+  Pass  Status is 200
+  Pass  Has description
+
+Sub-folder Product not found (404)
+  GET http://localhost:4000/api/v1/products/000000000000000000000000 [404 Not Found, 1.08kB, 78ms]
+  Pass  Status is 404
+  Pass  Error code is NOT_FOUND
+
+Sub-folder Brands with invalid category (422)
+  GET http://localhost:4000/api/v1/brands?category=bad-id [422 Unprocessable Entity, 1.09kB, 4ms]
+  Pass  Status is 422
+  Pass  Error code is VALIDATION_ERROR
+
+Folder 3 Cart
+Sub-folder Add to cart without token (401)
+  POST http://localhost:4000/api/v1/cart/items [401 Unauthorized, 1.08kB, 3ms]
+  Pass  Status is 401
+  Pass  Error code is UNAUTHENTICATED
+
+Sub-folder Add to cart
+  POST http://localhost:4000/api/v1/cart/items [201 Created, 1.12kB, 386ms]
+  Pass  Status is 201
+  Pass  Subtotal is computed by the server
+
+Sub-folder Add more than stock (409)
+  POST http://localhost:4000/api/v1/cart/items [409 Conflict, 1.08kB, 155ms]
+  Pass  Status is 409
+  Pass  Error code is INSUFFICIENT_STOCK
+
+Sub-folder View cart
+  GET http://localhost:4000/api/v1/cart [200 OK, 1.12kB, 154ms]
+  Pass  Status is 200
+  Pass  Cart has the item
+
+Folder 4 Checkout and Orders
+Sub-folder Checkout without Idempotency-Key (422)
+  POST http://localhost:4000/api/v1/orders [422 Unprocessable Entity, 1.12kB, 3ms]
+  Pass  Status is 422
+  Pass  Error code is IDEMPOTENCY_KEY_REQUIRED
+
+Sub-folder Checkout with expired coupon (422)
+  POST http://localhost:4000/api/v1/orders [422 Unprocessable Entity, 1.09kB, 619ms]
+  Pass  Status is 422
+  Pass  Error code is COUPON_EXPIRED
+
+Sub-folder Checkout with client-sent total is rejected (422)
+  POST http://localhost:4000/api/v1/orders [422 Unprocessable Entity, 1.1kB, 3ms]
+  Pass  Status is 422
+  Pass  Error code is VALIDATION_ERROR
+
+Sub-folder Checkout (creates Maya sandbox session)
+  POST http://localhost:4000/api/v1/orders [201 Created, 1.78kB, 909ms]
+  Pass  Status is 201
+  Pass  Pending payment with checkout URL
+
+Sub-folder Checkout again with SAME key returns same order
+  POST http://localhost:4000/api/v1/orders [201 Created, 1.78kB, 120ms]
+  Pass  Status is 201
+  Pass  Same order id (no duplicate)
+
+Sub-folder List my orders
+  GET http://localhost:4000/api/v1/orders [200 OK, 2.73kB, 238ms]
+  Pass  Status is 200
+
+Sub-folder Get my order
+  GET http://localhost:4000/api/v1/orders/6afeb095166f72edbf5b5bbd [200 OK, 1.77kB, 125ms]
+  Pass  Status is 200
+
+Sub-folder Cancel unpaid order
+  POST http://localhost:4000/api/v1/orders/6afeb095166f72edbf5b5bbd/cancel [200 OK, 1.88kB, 286ms]
+  Pass  Status is 200
+  Pass  Cancelled
+
+Sub-folder Cancel again (409)
+  POST http://localhost:4000/api/v1/orders/6afeb095166f72edbf5b5bbd/cancel [409 Conflict, 1.1kB, 126ms]
+  Pass  Status is 409
+  Pass  Error code is CANNOT_CANCEL
+
+Folder 5 Offers
+Sub-folder Make offer below price
+  POST http://localhost:4000/api/v1/products/6afea2a1e984d7dfcdf99fba/offers [201 Created, 1.2kB, 304ms]
+  Pass  Status is 201
+
+Sub-folder Offer at full price (422)
+  POST http://localhost:4000/api/v1/products/6afea2a1e984d7dfcdf99fba/offers [422 Unprocessable Entity, 1.12kB, 118ms]
+  Pass  Status is 422
+  Pass  Error code is OFFER_NOT_BELOW_PRICE
+
+Sub-folder Offer too low (422)
+  POST http://localhost:4000/api/v1/products/6afea2a1e984d7dfcdf99fba/offers [422 Unprocessable Entity, 1.12kB, 123ms]
+  Pass  Status is 422
+  Pass  Error code is OFFER_TOO_LOW
+
+Sub-folder Admin accepts offer
+  PATCH http://localhost:4000/api/v1/admin/offers/6afeb097166f72edbf5b5bcb [200 OK, 1.19kB, 106ms]
+  Pass  Status is 200
+  Pass  Accepted
+
+Folder 6 Admin
+Sub-folder Dashboard as customer (403)
+  GET http://localhost:4000/api/v1/admin/dashboard [403 Forbidden, 1.08kB, 5ms]
+  Pass  Status is 403
+  Pass  Error code is FORBIDDEN
+
+Sub-folder Dashboard as admin
+  GET http://localhost:4000/api/v1/admin/dashboard [200 OK, 1.14kB, 488ms]
+  Pass  Status is 200
+  Pass  Has sales figures
+
+Sub-folder List orders (filter by status)
+  GET http://localhost:4000/api/v1/admin/orders?status=cancelled [200 OK, 2.83kB, 209ms]
+  Pass  Status is 200
+
+Sub-folder Create product with invalid data (422)
+  POST http://localhost:4000/api/v1/admin/products [422 Unprocessable Entity, 1.21kB, 8ms]
+  Pass  Status is 422
+  Pass  Error code is VALIDATION_ERROR
+
+Sub-folder Create coupon
+  POST http://localhost:4000/api/v1/admin/coupons [201 Created, 1.21kB, 121ms]
+  Pass  Status is 201
+
+Sub-folder Illegal status change (409)
+  PATCH http://localhost:4000/api/v1/admin/orders/6afeb095166f72edbf5b5bbd/status [409 Conflict, 1.09kB, 94ms]
+  Pass  Status is 409
+  Pass  Error code is ILLEGAL_TRANSITION
+
+Folder 7 Webhook and AI
+Sub-folder Webhook with invalid signature (401)
+  POST http://localhost:4000/api/v1/webhooks/paymongo [401 Unauthorized, 1.08kB, 10ms]
+  Pass  Status is 401
+  Pass  Error code is INVALID_SIGNATURE
+
+Sub-folder AI assistant without token (401)
+  POST http://localhost:4000/api/v1/ai/assistant [401 Unauthorized, 1.08kB, 5ms]
+  Pass  Status is 401
+
+Sub-folder AI assistant with too-short text (422)
+  POST http://localhost:4000/api/v1/ai/assistant [422 Unprocessable Entity, 1.24kB, 8ms]
+  Pass  Status is 422
+  Pass  Error code is VALIDATION_ERROR
+
+Sub-folder AI assistant (AI or keyword fallback)
+  POST http://localhost:4000/api/v1/ai/assistant [200 OK, 1.44kB, 630ms]
+  Pass  Status is 200
+  Pass  Returns a source label
+
+--------------------------------------------------------------------
+|                         |           executed |            failed |
+--------------------------+--------------------+--------------------
+|              iterations |                  1 |                 0 |
+--------------------------+--------------------+--------------------
+|                requests |                 41 |                 0 |
+--------------------------+--------------------+--------------------
+|            test-scripts |                 41 |                 0 |
+--------------------------+--------------------+--------------------
+|      prerequest-scripts |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|              assertions |                 73 |                 0 |
+--------------------------------------------------------------------
+| total run duration: 10.8s                                        |
+--------------------------------------------------------------------
+| total data received: 32.9kB (approx)                             |
+--------------------------------------------------------------------
+| average response time: 177ms [min: 3ms, max: 909ms, s.d.: 197ms] |
+--------------------------------------------------------------------
