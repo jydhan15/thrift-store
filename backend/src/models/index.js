@@ -56,6 +56,8 @@ const orderSchema = new Schema({
   gatewayRef: { type: String, unique: true, sparse: true },
   checkoutUrl: String, paymentId: String, paidAt: Date,
   flag: String, // AMOUNT_MISMATCH, PAID_AFTER_EXPIRY
+  paymentAttempts: { type: Number, default: 1 },
+  previousRefs: [String], // earlier payment sessions of this order
 }, opts);
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 const Order = model("Order", orderSchema);

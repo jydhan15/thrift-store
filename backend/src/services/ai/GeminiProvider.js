@@ -9,7 +9,7 @@ class GeminiProvider extends AIProvider {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: userPayload }] }],
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 600, temperature: 0.3 },
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 2048, temperature: 0.3 },
       }),
     });
     if (!res.ok) throw new Error("provider status " + res.status);

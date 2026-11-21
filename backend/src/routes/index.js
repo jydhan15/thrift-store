@@ -8,6 +8,7 @@ const C = require("../controllers/cartController");
 const O = require("../controllers/orderController");
 const F = require("../controllers/offerController");
 const M = require("../controllers/miscController");
+const RC = require("../controllers/retryController");
 
 const authLimit = rateLimit({ windowMs: 15 * 60000, limit: 30, standardHeaders: true, message: { success: false, error: { code: "RATE_LIMITED", message: "Too many requests" } } });
 const aiLimit = rateLimit({ windowMs: 60000, limit: 10, message: { success: false, error: { code: "RATE_LIMITED", message: "Too many AI requests" } } });
@@ -30,6 +31,7 @@ r.post("/orders", auth, v(O.checkoutSchema), O.checkout);              // reserv
 r.get("/orders", auth, O.mine);
 r.get("/orders/:id", auth, O.getMine);
 r.post("/orders/:id/cancel", auth, O.cancel);
+r.post("/orders/:id/pay", auth, RC.retry);                             // retry payment (new session, same order)
 r.get("/offers/mine", auth, F.mine);
 
 r.post("/ai/assistant", auth, aiLimit, v(M.aiSchema), M.assistant);

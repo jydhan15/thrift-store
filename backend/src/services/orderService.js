@@ -4,7 +4,9 @@ const { AppError } = require("../utils/errors");
 const TRANSITIONS = {
   pending_payment: ["paid", "cancelled", "expired", "payment_failed"],
   paid: ["processing"], processing: ["shipped"], shipped: ["delivered"],
-  delivered: [], cancelled: [], expired: [], payment_failed: [],
+  delivered: [], cancelled: [],
+  expired: ["pending_payment"],        // customer retry (stock is re-reserved first)
+  payment_failed: ["pending_payment"], // customer retry (stock is re-reserved first)
 };
 const canTransition = (from, to) => (TRANSITIONS[from] || []).includes(to);
 

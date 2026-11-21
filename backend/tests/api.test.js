@@ -7,16 +7,17 @@ process.env.MAYA_WEBHOOK_TOKEN = "good-token";
 // Fake payment gateway: no real network calls in tests
 jest.mock("../src/services/payment", () => {
   const fake = {
-    createCheckout: async (o) => ({ id: "cs_" + o._id, url: "http://pay.test/" + o._id }),
+    createCheckout: async (o) => ({ id: "cs_" + o._id + "_" + Math.random().toString(36).slice(2), url: "http://pay.test/" + o._id }), // new id every call
     retrieve: async () => ({ paid: false }),
     verifyWebhook: (raw, h) => h["x-webhook-token"] === "good-token",
-    parseEvent: () => ({ eventId: "evt1", type: "ignored", sessionId: "s" }),
+    parseEvent: (raw) => { const e = JSON.parse(raw.toString() || "{}"); return { eventId: e.eventId || "evt-x", type: e.type || "ignored", sessionId: e.sessionId }; },
   };
   return () => fake;
 });
 
 const request = require("supertest");
 const mongoose = require("mongoose");
+const { releaseOrder } = require("../src/services/orderService");
 const bcrypt = require("bcryptjs");
 const { MongoMemoryServer } = require("mongodb-memory-server");
 
@@ -130,5 +131,82 @@ describe("Catalog", () => {
     expect(r.status).toBe(200); expect(r.body.data.every((x) => x.brand === "Carhartt")).toBe(true);
     const b = await request(app).get("/api/v1/brands");
     expect(b.body.data.some((x) => x.name === "Carhartt")).toBe(true);
+  });
+});
+
+describe("Payment retry and failed payments (L2-07)", () => {
+  const body = { shippingInfo: { fullName: "Retry Test", address: "123 Test Street", phone: "0917000000" } };
+  async function placeOrder(token, key, product) {
+    await request(app).post("/api/v1/cart/items").set(auth(token)).send({ productId: String(product._id), qty: 1 });
+    const r = await request(app).post("/api/v1/orders").set(auth(token)).set("Idempotency-Key", key).send(body);
+    return r.body.data;
+  }
+  const retry = (token, id) => request(app).post("/api/v1/orders/" + id + "/pay").set(auth(token));
+
+  test("a pending order gets a NEW payment session and the old one is remembered", async () => {
+    const t = await register("retry1@t.test"), p = await makeProduct();
+    const order = await placeOrder(t, "retry-1", p);
+    const r = await retry(t, order._id);
+    expect(r.status).toBe(200);
+    expect(r.body.data.gatewayRef).not.toBe(order.gatewayRef);
+    expect(r.body.data.previousRefs).toContain(order.gatewayRef);
+    expect(r.body.data.paymentAttempts).toBe(2);
+    expect(r.body.data.status).toBe("pending_payment");
+  });
+
+  test("an expired order can be retried: stock is reserved again and history records it", async () => {
+    const t = await register("retry2@t.test"), p = await makeProduct({ stock: 1 });
+    const order = await placeOrder(t, "retry-2", p);
+    await releaseOrder(order._id, "expired", "system");
+    expect((await M.Product.findById(p._id)).stock).toBe(1); // released
+    const r = await retry(t, order._id);
+    expect(r.status).toBe(200);
+    expect(r.body.data.status).toBe("pending_payment");
+    expect((await M.Product.findById(p._id)).stock).toBe(0); // reserved again
+    expect(r.body.data.history.map((h) => h.to)).toEqual(expect.arrayContaining(["expired", "pending_payment"]));
+  });
+
+  test("retry fails cleanly when someone else took the item meanwhile", async () => {
+    const t = await register("retry3@t.test"), p = await makeProduct({ stock: 1 });
+    const order = await placeOrder(t, "retry-3", p);
+    await releaseOrder(order._id, "expired", "system");
+    await M.Product.updateOne({ _id: p._id }, { stock: 0 }); // sold to another buyer
+    const r = await retry(t, order._id);
+    expect(r.status).toBe(409); expect(r.body.error.code).toBe("ITEM_UNAVAILABLE");
+    expect((await M.Order.findById(order._id)).status).toBe("expired");
+  });
+
+  test("a paid order is never retried, a cancelled order cannot be revived, and other users get 404", async () => {
+    const t = await register("retry4@t.test"), other = await register("retry5@t.test");
+    const order = await placeOrder(t, "retry-4", await makeProduct());
+    expect((await retry(other, order._id)).status).toBe(404);
+    await M.Order.updateOne({ _id: order._id }, { status: "paid" });
+    const paid = await retry(t, order._id);
+    expect(paid.status).toBe(409); expect(paid.body.error.code).toBe("ALREADY_PAID");
+    const order2 = await placeOrder(t, "retry-4b", await makeProduct());
+    await request(app).post("/api/v1/orders/" + order2._id + "/cancel").set(auth(t));
+    expect((await retry(t, order2._id)).body.error.code).toBe("CANNOT_RETRY");
+  });
+
+  test("attempts are limited", async () => {
+    const t = await register("retry6@t.test");
+    const order = await placeOrder(t, "retry-6", await makeProduct());
+    await M.Order.updateOne({ _id: order._id }, { paymentAttempts: 5 });
+    const r = await retry(t, order._id);
+    expect(r.status).toBe(409); expect(r.body.error.code).toBe("TOO_MANY_ATTEMPTS");
+  });
+
+  test("a failed-payment webhook releases stock, a replay is ignored, and the order can then be retried", async () => {
+    const t = await register("retry7@t.test"), p = await makeProduct({ stock: 1 });
+    const order = await placeOrder(t, "retry-7", p);
+    const event = { eventId: "evt-fail-1", type: "checkout_session.payment.failed", sessionId: order.gatewayRef };
+    const first = await request(app).post("/api/v1/webhooks/maya?token=good-token").send(event);
+    expect(first.status).toBe(200); expect(first.body.failed).toBe(true);
+    expect((await M.Order.findById(order._id)).status).toBe("payment_failed");
+    expect((await M.Product.findById(p._id)).stock).toBe(1); // released
+    const replay = await request(app).post("/api/v1/webhooks/maya?token=good-token").send(event);
+    expect(replay.body.duplicate).toBe(true);
+    const again = await retry(t, order._id);
+    expect(again.status).toBe(200); expect(again.body.data.status).toBe("pending_payment");
   });
 });

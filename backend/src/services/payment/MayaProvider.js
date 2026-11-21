@@ -26,11 +26,13 @@ class MayaProvider extends PaymentProvider {
   async createCheckout(order) {
     const FRONT = process.env.FRONTEND_URL;
     const peso = Number((order.total / 100).toFixed(2)); // Maya uses pesos, not centavos
+    // unique per session, so a retry for the same order never reuses a reference number
+    const ref = String(order._id) + "-" + Date.now().toString(36);
     const d = await this.call("/checkout/v1/checkouts", { method: "POST", key: process.env.MAYA_PUBLIC_KEY, body: {
       totalAmount: { value: peso, currency: "PHP" },
       items: [{ name: "Thrift order " + String(order._id).slice(-6), quantity: 1, amount: { value: peso }, totalAmount: { value: peso } }],
       redirectUrl: { success: FRONT + "/orders?paid=1", failure: FRONT + "/orders?failed=1", cancel: FRONT + "/orders?cancelled=1" },
-      requestReferenceNumber: String(order._id),
+      requestReferenceNumber: ref,
     } });
     return { id: d.checkoutId, url: d.redirectUrl };
   }
