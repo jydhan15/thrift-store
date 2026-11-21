@@ -1,8 +1,9 @@
-const { Cart, Product, Order, Coupon, Offer } = require("../models");
+const { Cart, Order, Coupon, Offer } = require("../models");
 const { AppError } = require("../utils/errors");
 const getPaymentProvider = require("./payment");
 const { validateAndPrice } = require("./couponService");
 const { releaseOrder } = require("./orderService");
+const { reserve, release } = require("./inventoryService");
 
 const SHIPPING_FEE = 5000;        // centavos
 const RESERVE_MINUTES = 15;       // THRIFT FEATURE 1: reservation countdown
@@ -17,11 +18,7 @@ async function checkout(userId, { couponCode, shippingInfo, idempotencyKey }) {
   const reserved = [], lines = [], usedOffers = [];
   try {
     for (const it of cart.items) {
-      // atomic conditional decrement: two buyers can never both take the last unit
-      const p = await Product.findOneAndUpdate(
-        { _id: it.product, status: "active", stock: { $gte: it.qty } },
-        { $inc: { stock: -it.qty } }, { new: true });
-      if (!p) throw new AppError(409, "ITEM_UNAVAILABLE", "An item was just taken or is unavailable");
+      const p = await reserve(it); // atomic conditional decrement (inventoryService)
       reserved.push(it);
       // accepted offer overrides price for THIS buyer only (price is still server-decided)
       const offer = await Offer.findOneAndUpdate({ product: p._id, buyer: userId, status: "accepted" }, { status: "used" });
@@ -57,7 +54,7 @@ async function checkout(userId, { couponCode, shippingInfo, idempotencyKey }) {
     // roll back stock taken so far if the order was never created
     const made = await Order.exists({ user: userId, idempotencyKey });
     if (!made) {
-      for (const it of reserved) await Product.updateOne({ _id: it.product }, { $inc: { stock: it.qty } });
+      await release(reserved);
       for (const id of usedOffers) await Offer.updateOne({ _id: id }, { status: "accepted" });
     }
     throw e;

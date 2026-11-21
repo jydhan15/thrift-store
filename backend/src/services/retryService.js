@@ -1,24 +1,12 @@
-const { Order, Product, Coupon } = require("../models");
+const { Order, Coupon } = require("../models");
 const { AppError } = require("../utils/errors");
 const getPaymentProvider = require("./payment");
 const { transition, releaseOrder } = require("./orderService");
+const { reserveAll, release } = require("./inventoryService");
 
 const RESERVE_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
 const REVIVABLE = ["payment_failed", "expired"]; // stock was released, so it must be re-reserved
-const giveBack = async (items) => { for (const it of items) await Product.updateOne({ _id: it.product }, { $inc: { stock: it.qty } }); };
-
-// all-or-nothing: either every item is reserved again, or none is
-async function takeStock(items) {
-  const taken = [];
-  try {
-    for (const it of items) {
-      const p = await Product.findOneAndUpdate({ _id: it.product, status: "active", stock: { $gte: it.qty } }, { $inc: { stock: -it.qty } });
-      if (!p) throw new AppError(409, "ITEM_UNAVAILABLE", "An item was sold or is no longer available");
-      taken.push(it);
-    }
-  } catch (e) { await giveBack(taken); throw e; }
-}
 
 // Retry payment: always creates a NEW gateway session for the SAME order.
 async function retryPayment(userId, orderId) {
@@ -33,7 +21,7 @@ async function retryPayment(userId, orderId) {
   let couponClaimed = false;
 
   if (revive) {
-    await takeStock(order.items); // 1) reserve the items again (atomic, can fail)
+    await reserveAll(order.items); // 1) reserve the items again (atomic, all-or-nothing, can fail)
     try {
       if (order.couponCode) { // 2) claim the coupon again with the same limit check as checkout
         const c = await Coupon.findOneAndUpdate({ code: order.couponCode, $or: [{ usageLimit: 0 }, { $expr: { $lt: ["$usedCount", "$usageLimit"] } }] }, { $inc: { usedCount: 1 } });
@@ -42,7 +30,7 @@ async function retryPayment(userId, orderId) {
       }
       await transition(order._id, from, "pending_payment", userId, { expiresAt }); // 3) recorded in history
     } catch (e) {
-      await giveBack(order.items);
+      await release(order.items);
       if (couponClaimed) await Coupon.updateOne({ code: order.couponCode }, { $inc: { usedCount: -1 } });
       throw e;
     }
