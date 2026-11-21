@@ -35,3 +35,12 @@ Date run: 2026-11-21 | Command: `cd backend; npm test` | Result: 19 of 19 tests 
 | Retry after a failed payment | 200, order back to pending_payment, stock reserved again | Pass |
 
 Known limitation: the retry endpoint is also covered in the Postman collection (folder: Orders), but the real Maya sandbox page is tested manually, not in automated tests.
+
+
+## Dependency audit (S-13)
+
+Date run: 2026-11-21 | Command: `cd backend; npm audit --omit=dev`
+
+| Finding | Severity | Resolution |
+| --- | --- | --- |
+| zod < 4.6.6 (GHSA-mrhx-c7xc-m3w5, memory exhaustion on oversized collections) | High | Fixed by upgrading zod to 4.x. Test suite re-run: 19 of 19 passing. Audit re-run: 0 vulnerabilities. |
