@@ -1,4 +1,4 @@
-# Business Rules (Thrift Store)
+﻿# Business Rules (Thrift Store)
 | Rule | Endpoint | Error |
 |---|---|---|
 | Each item is unique (stock 1); only one buyer can reserve it | POST /api/v1/orders | 409 ITEM_UNAVAILABLE |
@@ -8,3 +8,16 @@
 | Only admin can accept/reject; accepted offer price applies only to that buyer, once | PATCH /api/v1/admin/offers/:id | 403 / 409 OFFER_NOT_PENDING |
 | Coupon rules: expiry, min spend, usage limits | POST /api/v1/orders | 422 COUPON_* |
 | Illegal order transitions | PATCH /api/v1/admin/orders/:id/status | 409 ILLEGAL_TRANSITION |
+
+
+## Payment retry rules
+
+| Rule | Endpoint | Error when violated |
+| --- | --- | --- |
+| Only the owner can retry an order | POST /api/v1/orders/:id/pay | 404 NOT_FOUND |
+| A cancelled order cannot be retried | POST /api/v1/orders/:id/pay | 409 CANNOT_RETRY |
+| A paid or processing order cannot be retried | POST /api/v1/orders/:id/pay | 409 ALREADY_PAID |
+| Maximum 5 payment attempts per order | POST /api/v1/orders/:id/pay | 409 TOO_MANY_ATTEMPTS |
+| Items must still be available when a failed or expired order is revived (thrift items are one-of-one) | POST /api/v1/orders/:id/pay | 409 ITEM_UNAVAILABLE |
+| The coupon on the order must still have uses left | POST /api/v1/orders/:id/pay | 422 COUPON_EXHAUSTED |
+| Each retry holds the items for 15 minutes again | POST /api/v1/orders/:id/pay | (reservation expiry releases the stock) |

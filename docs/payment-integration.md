@@ -9,3 +9,12 @@ PayMongo sign-ups were paused, so the project uses the **Maya Checkout sandbox**
 - **Missed webhook recovery:** Admin -> Orders -> **Reconcile** calls Maya directly and applies the same checks. Unpaid orders expire after 15 minutes and stock is restored.
 - **Webhook registration:** `node registerMayaWebhook.js` (needs a public URL such as ngrok in `PUBLIC_API_URL`). Shared sandbox keys can be overwritten by other users, which is why Reconcile exists.
 - **Evidence to add:** screenshots of the Maya checkout page, the order turning `paid`, a replayed event, and a short screen recording.
+
+## Retry payment (failed, expired, or abandoned payments)
+
+- Endpoint: `POST /api/v1/orders/:id/pay` (customer token required, own orders only). Code: `backend/src/services/retryService.js`, `backend/src/controllers/retryController.js`.
+- Every retry creates a NEW gateway checkout session for the SAME order. The provider gives each session a unique reference number, so sessions never collide.
+- The old session id is pushed into `previousRefs`. If the customer pays an old session later, the webhook or reconciliation still finds the order, and it is verified (status, amount, currency) like any other payment.
+- If the order was `payment_failed` or `expired`, its stock was already released, so the items are reserved again all-or-nothing, and the coupon is claimed again with the same usage-limit check as checkout. If the gateway call fails after that, stock and coupon are given back and the order returns to `payment_failed`.
+- If the order is still `pending_payment`, only the 15-minute hold is extended.
+- Limit: 5 payment attempts per order (`paymentAttempts`). A paid order is never reversed or retried.
