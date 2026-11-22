@@ -41,3 +41,13 @@ Backend on Render (set all env vars, start command `npm start`), frontend on Ver
 
 ## Docs
 See `docs/` for architecture, database, patterns, AI, payment, business rules, test plan, code review, and contributions.
+
+## Deployed app
+
+| Part | URL |
+| --- | --- |
+| Frontend (Vercel) | https://thrift-store-web-psi.vercel.app |
+| API base (Render) | https://thrift-store-api-0dcb.onrender.com/api/v1 |
+| API docs (Swagger UI) | https://thrift-store-api-0dcb.onrender.com/api-docs |
+
+The API runs on a free Render instance. After 15 minutes without requests it sleeps, so the first request can take 30 to 60 seconds. Payments use the Maya sandbox only (no real money).
