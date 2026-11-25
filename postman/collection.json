@@ -673,7 +673,9 @@
                 "exec": [
                   "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
                   "const d = pm.response.json().data; pm.test(\"Pending payment with checkout URL\", () => { pm.expect(d.status).to.eql(\"pending_payment\"); pm.expect(d.checkoutUrl).to.be.a(\"string\"); });",
-                  "pm.collectionVariables.set(\"orderId\", d._id);"
+                  "pm.collectionVariables.set(\"orderId\", d._id);",
+                  "pm.collectionVariables.set(\"gatewayRef\", d.gatewayRef);",
+                  "pm.collectionVariables.set(\"paymentAttempts\", d.paymentAttempts);"
                 ]
               }
             }
@@ -797,6 +799,33 @@
           }
         },
         {
+          "name": "Retry payment (new session, same order)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const d = pm.response.json().data;",
+                  "pm.test('A NEW gateway session was created', function () { pm.expect(d.gatewayRef).to.be.a('string'); pm.expect(d.gatewayRef).not.to.eql(pm.collectionVariables.get('gatewayRef')); });",
+                  "pm.test('Attempt count increased and old session kept', function () { pm.expect(d.paymentAttempts).to.eql(pm.collectionVariables.get('paymentAttempts') + 1); pm.expect(d.previousRefs).to.include(pm.collectionVariables.get('gatewayRef')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/orders/{{orderId}}/pay"
+          }
+        },
+        {
           "name": "Cancel unpaid order",
           "event": [
             {
@@ -822,15 +851,16 @@
           }
         },
         {
-          "name": "Retry payment (new session, same order)",
+          "name": "Retry cancelled order (409)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('retry returns 200 or a documented 409/422', function () {",
-                  "  pm.expect([200, 409, 422]).to.include(pm.response.code);",
+                  "pm.test('A cancelled order cannot be revived (409)', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('CANNOT_RETRY');",
                   "});"
                 ]
               }

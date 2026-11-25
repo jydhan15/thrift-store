@@ -53,6 +53,7 @@ const orderSchema = new Schema({
   history: [{ from: String, to: String, actor: String, at: { type: Date, default: Date.now }, _id: false }],
   expiresAt: Date, // reservation countdown
   idempotencyKey: String,
+  requestFingerprint: String, // SHA-256 of the checkout body for idempotency safety
   gatewayRef: { type: String, unique: true, sparse: true },
   checkoutUrl: String, paymentId: String, paidAt: Date,
   flag: String, // AMOUNT_MISMATCH, PAID_AFTER_EXPIRY

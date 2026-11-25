@@ -13,4 +13,4 @@ test("missing signature rejected", () => { expect(new PayMongoProvider().verifyW
 test("abstract PaymentProvider cannot be instantiated", () => { expect(() => new PaymentProvider()).toThrow(); });
 test("abstract AIProvider cannot be instantiated", () => { expect(() => new AIProvider()).toThrow(); });
 test("order state machine: legal and illegal", () => { expect(canTransition("pending_payment", "paid")).toBe(true); expect(canTransition("paid", "cancelled")).toBe(false); expect(canTransition("delivered", "paid")).toBe(false); });
-// add DB-backed tests with supertest + mongodb-memory-server: auth, role 403, checkout tamper, stock conflict
+// DB-backed integration tests live in api.test.js and business.test.js.

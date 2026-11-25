@@ -1,6 +1,7 @@
 const { Order, Product, Coupon } = require("../models");
 const { AppError } = require("../utils/errors");
 
+// Documented state machine. Anything not listed here returns 409.
 const TRANSITIONS = {
   pending_payment: ["paid", "cancelled", "expired", "payment_failed"],
   paid: ["processing"], processing: ["shipped"], shipped: ["delivered"],
@@ -19,6 +20,15 @@ async function transition(orderId, from, to, actor, extra = {}) {
   return o;
 }
 
+// Gateway flags and retries are recorded too, so every non-trivial order
+// change is visible in history rather than only in a final field.
+async function recordOrderEvent(orderId, flag, actor, extra = {}) {
+  return Order.findByIdAndUpdate(orderId, {
+    $set: { flag },
+    $push: { history: { from: extra.from || "gateway", to: extra.to || flag, actor: String(actor) } },
+  }, { new: true });
+}
+
 // release reserved stock + coupon use when an unpaid order dies
 async function releaseOrder(orderId, to, actor) {
   const o = await transition(orderId, "pending_payment", to, actor);
@@ -31,4 +41,4 @@ async function expireStale() {
   const stale = await Order.find({ status: "pending_payment", expiresAt: { $lt: new Date() } }).select("_id");
   for (const s of stale) { try { await releaseOrder(s._id, "expired", "system"); } catch {} }
 }
-module.exports = { TRANSITIONS, canTransition, transition, releaseOrder, expireStale };
+module.exports = { TRANSITIONS, canTransition, transition, recordOrderEvent, releaseOrder, expireStale };

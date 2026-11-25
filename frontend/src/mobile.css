@@ -1,0 +1,12 @@
+/* Polish layered on top of the mobile-first base in style.css.
+   Keep this file small: layout lives in style.css so there is one source of truth. */
+
+html { -webkit-text-size-adjust: 100%; }
+body { font-feature-settings: "ss01"; letter-spacing: -.005em; }
+.cat2, .chip { scroll-snap-align: start; }
+
+/* Native-feeling tap states without the blue mobile flash. */
+button:active, .btn:active, .cat2:active, .chip:active, .pcard:active { transform: scale(.97); }
+
+/* Wide tables on admin/orders stay scrollable instead of squashing text. */
+.scroll table { min-width: 520px; }

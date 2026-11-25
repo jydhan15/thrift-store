@@ -26,16 +26,6 @@
    "key": "adminPassword",
    "value": "Password123!",
    "enabled": true
-  },
-  {
-   "key": "customerToken",
-   "value": "",
-   "enabled": true
-  },
-  {
-   "key": "adminToken",
-   "value": "",
-   "enabled": true
   }
  ],
  "_postman_variable_scope": "environment"

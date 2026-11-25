@@ -5,12 +5,18 @@ const { validateAndPrice } = require("./couponService");
 const { releaseOrder } = require("./orderService");
 const { reserve, release } = require("./inventoryService");
 
-const SHIPPING_FEE = 5000;        // centavos
-const RESERVE_MINUTES = 15;       // THRIFT FEATURE 1: reservation countdown
+const SHIPPING_FEE = 5000;  // centavos
+const RESERVE_MINUTES = 15; // THRIFT FEATURE 1: reservation countdown
 
-async function checkout(userId, { couponCode, shippingInfo, idempotencyKey }) {
+async function checkout(userId, { couponCode, shippingInfo, idempotencyKey, fingerprint }) {
   const existing = await Order.findOne({ user: userId, idempotencyKey });
-  if (existing) return existing;
+  if (existing) {
+    // Same key + different body is a client bug (or a replay attack), not a new order.
+    if (existing.requestFingerprint && fingerprint && existing.requestFingerprint !== fingerprint) {
+      throw new AppError(409, "IDEMPOTENCY_CONFLICT", "That idempotency key was used with a different request");
+    }
+    return existing;
+  }
 
   const cart = await Cart.findOne({ user: userId });
   if (!cart || !cart.items.length) throw new AppError(422, "CART_EMPTY", "Cart is empty");
@@ -36,11 +42,12 @@ async function checkout(userId, { couponCode, shippingInfo, idempotencyKey }) {
       discount = r.discount;
     }
     const total = subtotal - discount + SHIPPING_FEE;
-    if (total < 2000) throw new AppError(422, "TOTAL_TOO_LOW", "PayMongo minimum is PHP 20");
+    if (total < 2000) throw new AppError(422, "TOTAL_TOO_LOW", "Gateway minimum is PHP 20");
 
     const order = await Order.create({
       user: userId, items: lines, subtotal, discount, shipping: SHIPPING_FEE, total,
-      couponCode: couponCode ? couponCode.toUpperCase() : undefined, shippingInfo, idempotencyKey,
+      couponCode: couponCode ? couponCode.toUpperCase() : undefined, shippingInfo,
+      idempotencyKey, requestFingerprint: fingerprint,
       expiresAt: new Date(Date.now() + RESERVE_MINUTES * 60000),
       history: [{ from: "", to: "pending_payment", actor: String(userId) }],
     });
@@ -51,6 +58,12 @@ async function checkout(userId, { couponCode, shippingInfo, idempotencyKey }) {
     await Cart.deleteOne({ user: userId });
     return order;
   } catch (e) {
+    // Two concurrent requests with the same key can both pass the initial
+    // check. The unique index decides the winner; the loser returns that order.
+    if (e.code === 11000) {
+      const raced = await Order.findOne({ user: userId, idempotencyKey });
+      if (raced) return raced;
+    }
     // roll back stock taken so far if the order was never created
     const made = await Order.exists({ user: userId, idempotencyKey });
     if (!made) {
@@ -60,4 +73,4 @@ async function checkout(userId, { couponCode, shippingInfo, idempotencyKey }) {
     throw e;
   }
 }
-module.exports = { checkout, SHIPPING_FEE };
+module.exports = { checkout, SHIPPING_FEE, RESERVE_MINUTES };

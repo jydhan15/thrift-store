@@ -6,7 +6,7 @@ exports.addSchema = z.object({ productId: z.string(), qty: z.number().int().min(
 
 async function view(userId) {
   const cart = await Cart.findOne({ user: userId }).populate("items.product");
-  const items = (cart ? cart.items : []).filter((i) => i.product).map((i) => ({ productId: i.product._id, name: i.product.name, unitPrice: i.product.price, qty: i.qty, lineTotal: i.product.price * i.qty }));
+  const items = (cart ? cart.items : []).filter((i) => i.product).map((i) => ({ productId: i.product._id, name: i.product.name, brand: i.product.brand, imageUrl: i.product.imageUrl, unitPrice: i.product.price, qty: i.qty, lineTotal: i.product.price * i.qty }));
   return { items, subtotal: items.reduce((s, i) => s + i.lineTotal, 0) }; // always server-computed
 }
 exports.get = wrap(async (req, res) => ok(res, await view(req.user.id)));

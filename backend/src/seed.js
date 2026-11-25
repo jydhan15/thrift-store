@@ -12,7 +12,13 @@ const { buildItems, categoryOf, CATEGORIES, BRANDS } = require("./seedData");
   for (const n of CATEGORIES) cats[n] = (await Category.findOneAndUpdate({ name: n }, { name: n }, { upsert: true, new: true }))._id;
   const hash = await bcrypt.hash("Password123!", 10);
   await User.findOneAndUpdate({ email: "admin@thrift.test" }, { name: "Admin", email: "admin@thrift.test", password: hash, role: "admin" }, { upsert: true });
-  for (const n of [1, 2]) await User.findOneAndUpdate({ email: "customer" + n + "@thrift.test" }, { name: "Customer " + n, email: "customer" + n + "@thrift.test", password: hash }, { upsert: true });
+  const demoCustomers = [
+    ["customer1@thrift.test", "Customer 1"],
+    ["customer2@thrift.test", "Customer 2"],
+    ["Blaire@gmail.com", "Blaire"],
+    ["jydhan@gmail.com", "Jydhan"],
+  ];
+  for (const [email, name] of demoCustomers) await User.findOneAndUpdate({ email }, { name, email, password: hash, role: "customer" }, { upsert: true });
   // remove OLD generated catalog (keeps anything with orders and your own custom items), then rebuild
   const used = await Order.distinct("items.product");
   const del = await Product.deleteMany({ _id: { $nin: used }, description: /once sold, it is gone|^One-of-a-kind thrifted/ });

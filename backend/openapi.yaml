@@ -1,726 +1,4065 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: Thrift Store API
   version: 1.0.0
   description: All routes under /api/v1.
 servers:
-- url: /api/v1
+  - url: /api/v1
 components:
   securitySchemes:
     bearer:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          description: Endpoint-specific payload
+        meta:
+          type: object
+          description: 'Pagination metadata: total, page, limit'
+        requestId:
+          type: string
+          maxLength: 64
+      required:
+        - success
+        - data
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum:
+            - false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              maxLength: 60
+            message:
+              type: string
+              maxLength: 200
+            details:
+              oneOf:
+                - type: object
+                - type: 'null'
+          required:
+            - code
+            - message
+        requestId:
+          type: string
+          maxLength: 64
+      required:
+        - success
+        - error
+        - requestId
+    RegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          maxLength: 100
+      required:
+        - name
+        - email
+        - password
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          maxLength: 100
+      required:
+        - email
+        - password
+    OfferRequest:
+      type: object
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+      required:
+        - amount
+    CartAddRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+          maxLength: 24
+        qty:
+          type: integer
+          minimum: 1
+      required:
+        - productId
+    CheckoutRequest:
+      type: object
+      properties:
+        couponCode:
+          type: string
+          maxLength: 30
+        shippingInfo:
+          type: object
+          properties:
+            fullName:
+              type: string
+              maxLength: 80
+            address:
+              type: string
+              maxLength: 200
+            phone:
+              type: string
+              maxLength: 20
+          required:
+            - fullName
+            - address
+            - phone
+      required:
+        - shippingInfo
+    ProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        brand:
+          type: string
+          maxLength: 40
+        description:
+          type: string
+          maxLength: 2000
+        price:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+        category:
+          type: string
+          maxLength: 24
+        condition:
+          type: string
+          enum:
+            - like_new
+            - good
+            - fair
+            - worn
+        size:
+          type: string
+          maxLength: 20
+        imageUrl:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+      required:
+        - name
+        - price
+    StockRequest:
+      type: object
+      properties:
+        stock:
+          type: integer
+          minimum: 0
+        reason:
+          type: string
+          maxLength: 200
+      required:
+        - stock
+        - reason
+    StatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - processing
+            - shipped
+            - delivered
+      required:
+        - status
+    OfferDecisionRequest:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+            - accepted
+            - rejected
+      required:
+        - decision
+    CouponRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 30
+        type:
+          type: string
+          enum:
+            - percent
+            - fixed
+        value:
+          type: integer
+          minimum: 1
+        minSpend:
+          type: integer
+          minimum: 0
+        expiresAt:
+          type: string
+          format: date-time
+        usageLimit:
+          type: integer
+          minimum: 0
+        perUserLimit:
+          type: integer
+          minimum: 1
+      required:
+        - code
+        - type
+        - value
+    AIRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 300
+      required:
+        - text
+    WebhookEvent:
+      type: object
+      properties:
+        eventId:
+          type: string
+          maxLength: 120
+        type:
+          type: string
+          maxLength: 80
+        sessionId:
+          type: string
+          maxLength: 120
+        paymentStatus:
+          type: string
+          maxLength: 40
+      required:
+        - eventId
 paths:
   /auth/register:
     post:
       tags:
-      - auth
+        - auth
       summary: Register
-      parameters: []
       responses:
-        '200':
-          description: Success { success:true, data, meta }
+        '201':
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
           description: Unauthenticated
         '403':
           description: Forbidden
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              name: Ana
+              email: ana@example.com
+              password: Password123!
   /auth/login:
     post:
       tags:
-      - auth
+        - auth
       summary: Login
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
           description: Unauthenticated
         '403':
           description: Forbidden
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: ana@example.com
+              password: Password123!
   /categories:
     get:
       tags:
-      - catalog
+        - catalog
       summary: List categories with item counts
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
           description: Unauthenticated
         '403':
           description: Forbidden
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
   /brands:
     get:
       tags:
-      - catalog
+        - catalog
       summary: List brands (optional ?category=)
-      parameters: []
+      parameters:
+        - name: category
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
           description: Unauthenticated
         '403':
           description: Forbidden
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
   /products:
     get:
       tags:
-      - catalog
-      summary: List products (q, category, brand, condition, minPrice, maxPrice, sort,
-        page, limit)
-      parameters: []
+        - catalog
+      summary: 'List products (q, category, brand, condition, minPrice, maxPrice, sort, page, limit)'
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive name search
+          schema:
+            type: string
+            maxLength: 120
+        - name: category
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+        - name: brand
+          in: query
+          required: false
+          description: Exact brand
+          schema:
+            type: string
+            maxLength: 40
+        - name: condition
+          in: query
+          required: false
+          description: Condition grade
+          schema:
+            type: string
+            enum:
+              - like_new
+              - good
+              - fair
+              - worn
+        - name: minPrice
+          in: query
+          required: false
+          description: Minimum price in centavos
+          schema:
+            type: integer
+            minimum: 0
+        - name: maxPrice
+          in: query
+          required: false
+          description: Maximum price in centavos
+          schema:
+            type: integer
+            minimum: 0
+        - name: sort
+          in: query
+          required: false
+          description: Whitelisted sort
+          schema:
+            type: string
+            enum:
+              - newest
+              - price_asc
+              - price_desc
+        - name: page
+          in: query
+          required: false
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Items per page (max 50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
           description: Unauthenticated
         '403':
           description: Forbidden
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
-  /products/{id}:
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+  '/products/{id}':
     get:
       tags:
-      - catalog
+        - catalog
       summary: Product detail with description
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
           description: Unauthenticated
         '403':
           description: Forbidden
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
-  /products/{id}/offers:
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+  '/products/{id}/offers':
     post:
       tags:
-      - offers
+        - offers
       summary: Make an offer
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
-        '200':
-          description: Success { success:true, data, meta }
+        '201':
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferRequest'
+            example:
+              amount: 650000
   /offers/mine:
     get:
       tags:
-      - offers
+        - offers
       summary: My offers
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /cart:
     get:
       tags:
-      - cart
+        - cart
       summary: View cart
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /cart/items:
     post:
       tags:
-      - cart
+        - cart
       summary: Add to cart
-      parameters: []
       responses:
-        '200':
-          description: Success { success:true, data, meta }
+        '201':
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /cart/items/{productId}:
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartAddRequest'
+            example:
+              productId: 665f0f2c9d1b4a0012345678
+              qty: 1
+  '/cart/items/{productId}':
     delete:
       tags:
-      - cart
+        - cart
       summary: Remove from cart
       parameters:
-      - name: productId
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: productId
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /orders:
     post:
       tags:
-      - orders
+        - orders
       summary: Checkout (Idempotency-Key header required)
       parameters:
-      - name: Idempotency-Key
-        in: header
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Client-generated key; replay returns the same order
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '201':
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '401':
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '403':
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '409':
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '422':
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+      security:
+        - bearer: []
+      requestBody:
         required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Success { success:true, data, meta }
-        '401':
-          description: Unauthenticated
-        '403':
-          description: Forbidden
-        '404':
-          description: Not found
-        '409':
-          description: Conflict (stock, state, duplicate)
-        '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
-      security:
-      - bearer: []
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+            example:
+              couponCode: WELCOME10
+              shippingInfo:
+                fullName: Ana Reyes
+                address: 12 Maple St
+                phone: 09171234567
     get:
       tags:
-      - orders
+        - orders
       summary: My orders
-      parameters: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Items per page (max 50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /orders/{id}:
+        - bearer: []
+  '/orders/{id}':
     get:
       tags:
-      - orders
+        - orders
       summary: My order
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /orders/{id}/pay:
+        - bearer: []
+  '/orders/{id}/pay':
     post:
       tags:
-      - orders
+        - orders
       summary: Retry payment (new payment session for the same order)
-      description: Creates a NEW gateway checkout session for the customer's own order. Failed or expired orders get their stock and coupon reserved again. Maximum 5 attempts per order. The old session id is kept in previousRefs.
+      description: >-
+        Creates a NEW gateway checkout session for the customer's own order. Failed or expired orders get their stock
+        and coupon reserved again. Maximum 5 attempts per order. The old session id is kept in previousRefs.
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Order with a new checkoutUrl and paymentAttempts increased
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '403':
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: NOT_FOUND - order does not exist or belongs to another user
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: CANNOT_RETRY, ALREADY_PAID, TOO_MANY_ATTEMPTS, ITEM_UNAVAILABLE or ILLEGAL_TRANSITION
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: COUPON_EXHAUSTED - the coupon on the order has no uses left
-  /orders/{id}/cancel:
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+      security:
+        - bearer: []
+  '/orders/{id}/cancel':
     post:
       tags:
-      - orders
+        - orders
       summary: Cancel unpaid order
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /ai/assistant:
     post:
       tags:
-      - ai
+        - ai
       summary: AI shopping assistant
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIRequest'
+            example:
+              text: warm jacket under 1000 pesos
   /admin/products:
     post:
       tags:
-      - admin
+        - admin
       summary: Create product
-      parameters: []
       responses:
-        '200':
-          description: Success { success:true, data, meta }
+        '201':
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /admin/products/{id}:
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+            example:
+              name: Washed Denim Jacket
+              price: 65000
+              stock: 1
+              condition: good
+              brand: Levi's
+              size: M
+  '/admin/products/{id}':
     patch:
       tags:
-      - admin
+        - admin
       summary: Update product
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+            example:
+              name: Washed Denim Jacket
+              price: 60000
     delete:
       tags:
-      - admin
+        - admin
       summary: Delete product
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
-        '200':
-          description: Success { success:true, data, meta }
+        '204':
+          description: Deleted — no body
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /admin/products/{id}/stock:
+        - bearer: []
+  '/admin/products/{id}/stock':
     patch:
       tags:
-      - admin
+        - admin
       summary: Adjust stock (audit logged)
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockRequest'
+            example:
+              stock: 0
+              reason: item sold at counter
   /admin/orders:
     get:
       tags:
-      - admin
+        - admin
       summary: List orders
-      parameters: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Order status
+          schema:
+            type: string
+            enum:
+              - pending_payment
+              - paid
+              - processing
+              - shipped
+              - delivered
+              - cancelled
+              - expired
+              - payment_failed
+        - name: from
+          in: query
+          required: false
+          description: Created at >= from
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: Created at <= to
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          required: false
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Items per page (max 50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /admin/orders/{id}/status:
+        - bearer: []
+  '/admin/orders/{id}/status':
     patch:
       tags:
-      - admin
+        - admin
       summary: Update order status
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /admin/orders/{id}/reconcile:
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusRequest'
+            example:
+              status: processing
+  '/admin/orders/{id}/reconcile':
     post:
       tags:
-      - admin
+        - admin
       summary: Reconcile payment with the gateway
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /admin/dashboard:
     get:
       tags:
-      - admin
+        - admin
       summary: Dashboard
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /admin/offers:
     get:
       tags:
-      - admin
+        - admin
       summary: Pending offers
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
-  /admin/offers/{id}:
+        - bearer: []
+  '/admin/offers/{id}':
     patch:
       tags:
-      - admin
+        - admin
       summary: Accept or reject offer
       parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+        - name: id
+          in: path
+          required: true
+          description: 24-character Mongo ObjectId
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferDecisionRequest'
+            example:
+              decision: accepted
   /admin/coupons:
     post:
       tags:
-      - admin
+        - admin
       summary: Create coupon
-      parameters: []
       responses:
-        '200':
-          description: Success { success:true, data, meta }
+        '201':
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouponRequest'
+            example:
+              code: WELCOME10
+              type: percent
+              value: 10
+              minSpend: 0
+              usageLimit: 100
     get:
       tags:
-      - admin
+        - admin
       summary: List coupons
-      parameters: []
       responses:
         '200':
-          description: Success { success:true, data, meta }
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Unauthenticated
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '403':
-          description: Forbidden
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '409':
-          description: Conflict (stock, state, duplicate)
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '422':
-          description: Validation error { success:false, error:{code,message,details},
-            requestId }
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
       security:
-      - bearer: []
+        - bearer: []
   /webhooks/paymongo:
     post:
       tags:
-      - payments
-      summary: Gateway webhook (raw body, verified, stored by unique event id)
+        - payments
+      summary: 'Gateway webhook (raw body, verified, stored by unique event id)'
       responses:
         '200':
-          description: Received or duplicate
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Invalid signature
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '403':
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '409':
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '422':
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+      requestBody:
+        required: true
+        description: Raw request body; the gateway signature/token is verified over these exact bytes.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+            example:
+              eventId: evt_123
+              type: checkout_session.payment.paid
+              sessionId: cs_abc
+              paymentStatus: PAYMENT_SUCCESS
   /webhooks/maya:
     post:
       tags:
-      - payments
-      summary: Maya webhook (secret token in callback URL, payment re-verified with
-        Maya API)
+        - payments
+      summary: 'Maya webhook (secret token in callback URL, payment re-verified with Maya API)'
       parameters:
-      - name: token
-        in: query
-        required: true
-        schema:
-          type: string
+        - name: token
+          in: query
+          required: true
+          description: MAYA_WEBHOOK_TOKEN (constant-time compared)
+          schema:
+            type: string
+            maxLength: 120
       responses:
         '200':
-          description: Received or duplicate
+          description: 'Success — { success:true, data, meta?, requestId }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+                data:
+                  _id: 665f0f2c9d1b4a0012345678
+                  status: pending_payment
+                meta:
+                  total: 1
+                  page: 1
+                  limit: 10
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
         '401':
-          description: Invalid token
+          description: 'Unauthenticated — missing, expired or tampered token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '401'
+                  message: 'Unauthenticated — missing, expired or tampered token'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '403':
+          description: Forbidden — wrong role or origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '403'
+                  message: Forbidden — wrong role or origin
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '404'
+                  message: Resource not found
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '409':
+          description: 'Conflict — duplicate, illegal state or stock taken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '409'
+                  message: 'Conflict — duplicate, illegal state or stock taken'
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '422':
+          description: Validation failure with field-level details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '422'
+                  message: Validation failure with field-level details
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '429'
+                  message: Rate limited
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+        '500':
+          description: Unexpected error — generic message plus requestId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error:
+                  code: '500'
+                  message: Unexpected error — generic message plus requestId
+                  details: null
+                requestId: 1f0c2f2a-9b3e-4a7d-8c11-5e2a4b6d0f11
+      requestBody:
+        required: true
+        description: Raw request body; the gateway signature/token is verified over these exact bytes.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+            example:
+              eventId: evt_123
+              type: checkout_session.payment.paid
+              sessionId: cs_abc
+              paymentStatus: PAYMENT_SUCCESS

@@ -1,7 +1,17 @@
 # Code review record
-Open pull requests between teammates and record at least three findings.
-| PR link | Reviewer | Finding | Change made (commit) |
+
+Reviews were performed in the working tree during the final hardening pass. **No GitHub pull requests have been opened yet**, so the PR-link column is intentionally marked `local review`; replace it with the real PR URL once commits/PRs are created. Each finding below was reproduced, fixed, and re-tested (32/32 automated tests passing, see `docs/test-results.txt`).
+
+| PR / review | Reviewer | Finding (severity) | Change made |
 |---|---|---|---|
-| | | | |
-| | | | |
-| | | | |
+| local review — frontend | Self-review before defense | `Cart.jsx` called `refreshCart()` but `AuthCtx` never provided it, so the cart page crashed after a successful checkout (blocker). | `frontend/src/App.jsx` now exposes `{ user, login, logout, refreshCart }`; cart and order pages use it. Build + headless phone render verified. |
+| local review — frontend | Self-review before defense | Two different `ProductImage` components existed; one rendered only emoji art, so real cart photos never appeared. | Unified into `frontend/src/components/ProductImage.jsx`; root file is a compatibility re-export. |
+| local review — payments | Self-review before defense | `WebhookEvent` was inserted **before** processing. If `retrieve()` failed (gateway outage), the event id was burned and redelivery was treated as a duplicate — a paid order could stay unpaid forever (high). | `backend/src/services/paymentService.js` now checks for duplicates, processes, then stores the event id. Regression test: amount-mismatch and replay cases in `business.test.js`. |
+| local review — security | Self-review before defense | `cors({origin: process.env.FRONTEND_URL})` allows `*` when the env var is missing; JWT role was trusted from a one-day-old token (high). | `backend/src/app.js` fails closed with an explicit origin allowlist and `trust proxy`; `middleware/auth.js` pins HS256 and re-reads the role from MongoDB on every admin request. Test: all 12 admin routes return 401/403 correctly. |
+| local review — local setup | Self-review after user smoke test | The CORS allowlist accepted only `localhost:5173`, so `127.0.0.1` and phone LAN origins got `403 CORS_DENIED`, shown to the user as "Can't reach the server". A local `npm run preview` also used `import.meta.env.PROD` and called the dead Render API (high for demo). | `backend/src/app.js` auto-allows http origins on local/private hosts on any dev port (Vite increments to 5174 when 5173 is busy); `frontend/src/api.js` uses the page's host for local builds. Regression test S-7; headless render confirmed 12 product cards on 5173, 5174 and 4173. |
+| local review — business logic | Self-review before defense | Checkout checked the idempotency key with find-then-create; two simultaneous clicks could both pass and the loser got a generic 409 (medium). | Unique index + refetch-on-11000 + SHA-256 body fingerprint; same key/different body now returns 409 `IDEMPOTENCY_CONFLICT`. Test: concurrent same-key checkout. |
+| local review — admin | Self-review before defense | `adjustStock` was read-modify-write, so two admins could overwrite each other, and product queries accepted unvalidated query objects (medium). | Compare-and-set update with `StockLog`, whitelisted zod query schemas, ObjectId params validation, category existence check. |
+
+## What to complete before submission
+- Open real pull requests (at least one per member, reviewed by another member) and paste the links above.
+- Add `Reviewed-by:` trailers so Git history matches this record (requirement T-26 / T-28).
