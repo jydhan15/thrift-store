@@ -61,4 +61,6 @@ See `docs/` for architecture, database, patterns, AI, payment, business rules, t
 | API base (Render) | https://thrift-store-api-0dcb.onrender.com/api/v1 |
 | API docs (Swagger UI) | https://thrift-store-api-0dcb.onrender.com/api-docs |
 
+Live smoke passed on 2026-11-25: frontend, API, Swagger UI, CORS from Vercel, and admin login all returned `200`.
+
 Payments use the Maya sandbox only (no real money).
